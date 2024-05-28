@@ -86,33 +86,35 @@
       var getLoggedUserId = await sessionStorage.GetAsync<int>("userId");
       int loggedUserId = getLoggedUserId.Success ? getLoggedUserId.Value : 0;
       //Busco al owner del post
-      actualPost = await Task.Run(() => listPostUseCase.Execute().Find(post => post.getTransportId() == postId));
+      actualPost = listPostUseCase.Execute().Find(post => post.getTransportId() == postId);
       if (actualPost != null) {
-        actualShip = await Task.Run(() => shipListUseCase.Execute().Find(ship => ship.Id == actualPost.getTransportId()));
+        actualShip = shipListUseCase.Execute().Find(ship => ship.Id == actualPost.getTransportId());
         if (actualShip != null) {
-          User owner = await Task.Run(() => userListUseCase.Execute().Find(user => user.Id == actualShip.UserId));
+          User owner = userListUseCase.Execute().Find(user => user.Id == actualShip.UserId);
             
           //Checkeo si el owner y el usuario loggeado son el mismo user y guardo el resultado
           var isOwner = owner.Id == loggedUserId;
 
           GetImages();
+
+          // le aviso a blazor que se tiene que re-renderizar la pagina
+          StateHasChanged();
         }
       }
-
-      // le aviso a blazor que se tiene que re-renderizar la pagina
-      StateHasChanged();
     }
   }
 
   private void GetImages() {
     images = new List<byte[]>();
     var shipImages = listShipImagesUseCase.Execute().Where(img => img.ShipId == actualShip.Id);
+    
+    if (shipImages != null) {
+      foreach (var img in shipImages) {
+        images.Add(img.Image);
+      }
 
-    foreach (var img in shipImages) {
-      images.Add(img.Image);
+      limit = images.Count() - 1;
     }
-
-    limit = images.Count() - 1;
   }
 
   public void MoveRight() {  // para moverse por el slider de imagenes

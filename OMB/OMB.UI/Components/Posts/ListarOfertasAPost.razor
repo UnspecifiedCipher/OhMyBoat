@@ -1,0 +1,68 @@
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedSessionStorage sessionStorage
+@inject userListUseCase userListUseCase
+@inject listTransportUseCase listTransportUseCase
+@inject offerListUseCase offerListUseCase
+
+@rendermode InteractiveServer
+
+<div class="modal fade" id="listarBarcosModal" tabindex="-1" data-backdrop="static" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="exampleModalLabel">Ofertas Realizadas</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+        <div class="modal-body form-body">
+           @if (offerList.Any()) {
+                @foreach (var offer in offerList){
+                    <div class="offer">
+                        <div class="offer-info">
+                        <h3>Oferta de @getOfferTarget(offer)</h3>
+                        <h6>Ofrece @getOfferedTransport(offer)</h6>
+                    </div>
+                </div>
+                }
+            } else {
+                <div> NO HAY OFERTAS REALIZADAS.</div>
+            } 
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+</div>
+
+@code {
+    List<Offer> offerList = new List<Offer>();
+    int loggedUserId;
+
+    protected override async Task OnInitializedAsync() {
+        var getloggedUserId = await sessionStorage.GetAsync<int>("userId");
+        loggedUserId = getloggedUserId.Success ? getloggedUserId.Value : 0;
+
+    }
+
+    public void getOfferList (Post post) {
+        Transport postedTransport = listTransportUseCase.Execute().Find(transport => transport.Id == post.getTransportId());
+        offerList = offerListUseCase.Execute().Where(offer => offer.transportePosteadoId == postedTransport.Id).ToList();
+    }
+
+    public async Task<string> getOfferTarget(Offer offer) {
+        Transport postedTransport = await Task.Run(() => listTransportUseCase.Execute().Find(transport => transport.Id == offer.transportePosteadoId));
+        User postedTransportOwner = await Task.Run(() => userListUseCase.Execute().Find(user => user.Id == postedTransport.UserId));
+        return postedTransportOwner.userName;
+    }
+
+    public async Task<string> getOfferedTransport(Offer offer) {
+        Transport offeredTransport = await Task.Run(() => listTransportUseCase.Execute().Find(transport => transport.Id == offer.transporteOfertadoId));
+        return offeredTransport.plate; //placeholder
+    }
+
+    public async Task<string> getPostedTransport(Offer offer) {
+        Transport postedTransport = await Task.Run(() => listTransportUseCase.Execute().Find(transport => transport.Id == offer.transportePosteadoId));
+        return postedTransport.plate; //placeholder
+    }
+
+}

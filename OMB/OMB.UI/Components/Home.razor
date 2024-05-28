@@ -37,11 +37,11 @@ else{
         <div class="publicacion" @onclick="async () => await browseToPost(p)">
 
             <div class="img">
-                <img src="@string.Format("data:image/jpeg;base64,{0}", Convert.ToBase64String(_images[i]))"/>
+                <img src="@string.Format("data:image/jpeg;base64,{0}", Convert.ToBase64String(postToImage[p]))"/>
             </div>
             <div class="publicacion-info">
                 <h3>@p.getTitle()</h3>
-                <h6>@_descripciones[i]</h6>
+                <h6>@postToDescription[p]</h6>
             </div>
         </div>
         i++; @* Incremento i para seguir iterando *@
@@ -63,8 +63,8 @@ else{
 
     List<ShipImage> shipImages = new List<ShipImage>();
     List<VehicleImage> vehicleImages = new List<VehicleImage>();
-    List<byte[]> _images = new List<byte[]>();
-    List<string> _descripciones = new List<string>();
+    Dictionary<Post, byte[]> postToImage = new Dictionary<Post, byte[]>();
+    Dictionary<Post, string> postToDescription = new Dictionary<Post, string>();
 
     DialogoError dialogo = null!;
     string? cartelito;
@@ -96,10 +96,10 @@ else{
         // Generamos la lista de descripciones
         foreach (var post in posts) {
             string descripcion = transports.Find(T => T.Id == post.getTransportId()).description;
-            _descripciones.Add(descripcion);
-
             byte[]? image = (null != shipImages.Where(imagen => imagen.ShipId == post.getTransportId()).SingleOrDefault()) ? shipImages.Where(imagen => imagen.ShipId == post.getTransportId()).SingleOrDefault().Image : image = vehicleImages.Find(imagen => imagen.VehicleId == post.getTransportId()).Image;;
-            _images.Add(image);
+
+            postToImage[post] = image;
+            postToDescription[post] = descripcion;
         }
 
         var result  = await sessionStorage.GetAsync<string>("cartel?");
@@ -114,10 +114,12 @@ else{
 
     private async Task browseToPost(Post p) {
         try {
-            if (ships.Where(s => s.Id == p.TransportId).SingleOrDefault() != null) {      // getType returns True if p is ShipPost
+            if (ships != null && ships.Where(s => s.Id == p.TransportId).SingleOrDefault() != null) {
                 navegador.NavigateTo("/shippost/" + p.getTransportId(), true);
-            } else {            // if getType is false then p is VehiclePost
-                navegador.NavigateTo("/vehiclepost/" + p.getTransportId(), true);  // placeholder for testing
+            } else {
+                if (vehicles != null && vehicles.Where(v => v.Id == p.TransportId).SingleOrDefault() != null) {
+                    navegador.NavigateTo("/vehiclepost/" + p.getTransportId(), true);
+                }
             }
         }
         catch (TaskCanceledException) {

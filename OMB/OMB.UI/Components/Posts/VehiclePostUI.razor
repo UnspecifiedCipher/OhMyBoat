@@ -65,11 +65,15 @@
       @if((loggedUserId != 0) && (!isOwner)){
         <button class="btn btn-primary" @onclick="Ofertar" data-bs-toggle="modal" data-bs-target="#listarBarcosModal">Ofertar</button>
       }
+      @if (isOwner) {
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#listarOfertasModal">View Offers</button>
+      }
     </div>
   </div>
 }
 
 <ListarBarcosAOfertar @ref="listarBarcos" />
+<ListarOfertasAPost @ref="listarOfertas" />
 
 @code {
   [Parameter] public int? postId { get; set; }
@@ -77,7 +81,8 @@
   Post actualPost;
   Vehicle actualVehicle = new Vehicle();
 
-  ListarBarcosAOfertar listarBarcos = null!; 
+  ListarBarcosAOfertar listarBarcos = null!;
+  ListarOfertasAPost listarOfertas = null!;
 
   List<byte[]> images = new List<byte[]>(); // para las imagenes del post
   int limit = 0;  	  // para manejar el cap de imagenes
@@ -85,47 +90,49 @@
   int loggedUserId = 0;
   
 
-  protected override void OnInitialized() {
+  protected override async void OnInitialized() {
+    //Extrae el ID del usuario loggeado del sessionStorage
+    var getLoggedUserId = await sessionStorage.GetAsync<int>("userId");
+    loggedUserId = getLoggedUserId.Success ? getLoggedUserId.Value : 0;
+    
     images.Add(new byte[0]);
   }
 
   protected override async Task OnAfterRenderAsync(bool firstRender) {
     if (firstRender) {
-      //Extrae el ID del usuario loggeado del sessionStorage
-      var getLoggedUserId = await sessionStorage.GetAsync<int>("userId");
-      loggedUserId = getLoggedUserId.Success ? getLoggedUserId.Value : 0;
       //Busco al owner del post
-      actualPost = await Task.Run(() => listPostUseCase.Execute().Find(post => post.getTransportId() == postId));
+      actualPost = await Task.Run(() => listPostUseCase.Execute().Find(post => post.Id == postId));
       if (actualPost != null) {
         actualVehicle = await Task.Run(() => vehicleListUseCase.Execute().Find(vehicle => vehicle.Id == actualPost.getTransportId()));
         if (actualVehicle != null) {
           User owner = await Task.Run(() => userListUseCase.Execute().Find(user => user.Id == actualVehicle.UserId));
             
           //Checkeo si el owner y el usuario loggeado son el mismo user y guardo el resultado
-          var isOwner = owner.Id == loggedUserId;
+          isOwner = owner.Id == loggedUserId;
 
           GetImages();
+          
+          // le aviso a blazor que se tiene que re-renderizar la pagina
+          StateHasChanged();
         }
       }
-
-      // le aviso a blazor que se tiene que re-renderizar la pagina
-      StateHasChanged();
     }
   }
 
-  private void Ofertar() {
+  private async Task Ofertar() {
       listarBarcos.Cargar();
-    }
+  }
 
   private void GetImages() {
     images = new List<byte[]>();
     var vehicleImages = listVehicleImagesUseCase.Execute().Where(img => img.VehicleId == actualVehicle.Id);
+    if (vehicleImages != null) {
+      foreach (var img in vehicleImages) {
+        images.Add(img.Image);
+      }
 
-    foreach (var img in vehicleImages) {
-      images.Add(img.Image);
+      limit = images.Count() - 1;
     }
-
-    limit = images.Count() - 1;
   }
 
   public void MoveRight() {  // para moverse por el slider de imagenes
